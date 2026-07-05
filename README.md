@@ -1,76 +1,53 @@
 # calculator
 
-An Anchor-based Solana program that keeps a calculator value on chain.
+A small Anchor program that stores a number on chain and does math on it.
+The wallet that creates a calculator account is the only one allowed to
+change its value.
 
-The program is structured as a small arithmetic contract: it initializes an
-account with a number, then updates that stored value through calculator
-instructions such as doubling the value or adding another number.
+## Instructions
 
-## What it does
+- `initialize(initial_value)` - create the account and set the starting value
+- `double` - multiply by 2
+- `halve` - divide by 2 (integer division)
+- `add(amount)` - add a number
+- `sub(amount)` - subtract a number
 
-The program stores a single calculator value inside an on-chain account. Each
-instruction reads that account, applies the requested arithmetic operation, and
-writes the updated value back.
+All math is checked, so overflow/underflow fails with a program error
+instead of wrapping.
 
-- `init` creates the calculator account and sets the initial value
-- `double` multiplies the stored value by 2
-- `add` adds a provided number to the stored value
-
-So if the value starts at `5`, the instruction flow could look like this:
-
-```
-init(5)  ->  5
-double   ->  10
-add(7)   ->  17
-```
-
-## How it works
-
-1. The program receives an Anchor account context for the calculator state.
-2. The calculator account stores the current number as account data.
-3. Each instruction mutates the account-backed value directly.
-4. Anchor handles account validation, serialization, and program entrypoint
-   wiring around the Rust instruction logic.
-
-## Account data
-
-The calculator state is stored in an Anchor account with one numeric field:
+## State
 
 ```rust
-pub num: u32
+#[account]
+pub struct CalculatorState {
+    pub value: u32,
+    pub authority: Pubkey,
+}
 ```
 
-Anchor adds its account discriminator before the stored data, so the account
-space includes the discriminator plus the calculator value.
-
-## Project layout
-
-```
-calculator/
-  Anchor.toml                       Anchor workspace configuration
-  Cargo.toml                        Rust workspace configuration
-  programs/calculator/src/lib.rs    program entrypoint and instructions
-  programs/calculator/Cargo.toml    program package settings
-```
+`authority` is set on initialize and enforced with `has_one = authority`
+on every mutation.
 
 ## Build
-
-You need Rust, the Solana CLI, and Anchor installed.
 
 ```bash
 anchor build
 ```
 
-This builds the program into a Solana deployable `.so` file under
-`target/deploy/`.
+If you changed the program, regenerate the IDL and TS types:
+
+```bash
+anchor idl build -o target/idl/calculator.json -t target/types/calculator.ts
+```
 
 ## Test
 
-```bash
-cargo test
-```
+Tests live in `tests/calculator.spec.ts` and run with bun.
 
-Use this for Rust-side tests and local program checks.
+```bash
+bun install   # first time only
+anchor test
+```
 
 ## Deploy
 
@@ -78,5 +55,5 @@ Use this for Rust-side tests and local program checks.
 anchor deploy
 ```
 
-Run this against your chosen cluster, for example localnet or devnet. The
-program id is configured in `Anchor.toml`.
+Program ID lives in `Anchor.toml` and `declare_id!` in `lib.rs`. If they get
+out of sync with the keypair in `target/deploy/`, run `anchor keys sync`.
