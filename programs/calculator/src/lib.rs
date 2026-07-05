@@ -15,16 +15,19 @@ declare_id!("3XG3SjJFeobck2JCr3zgt7RiHJ2dGtqSsFqCxN5f4N4F");
 pub mod calculator {
     use super::*;
 
-    pub fn init(){
-
+    pub fn init(ctx: Context<Initialize>, init_value: u32) -> Result<()> {
+        ctx.accounts.account.num = init_value;
+        Ok(())
     }
 
-    pub fn double(){
-
+    pub fn double(ctx: Context<Double>) -> Result<()> {
+        ctx.accounts.account.num = ctx.accounts.account.num * 2;
+        Ok(())
     }
 
-    pub fn add(num: u32){
-
+    pub fn add(ctx: Context<Add>, num: u32) -> Result<()> {
+        ctx.accounts.account.num = ctx.accounts.account.num + num;
+        Ok(())
     }
 }
 
