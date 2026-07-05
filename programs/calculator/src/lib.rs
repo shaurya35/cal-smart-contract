@@ -23,7 +23,12 @@ pub mod calculator {
     }
 
     pub fn halve(ctx: Context<Modify>) -> Result<()> {
-        ctx.accounts.calculator.value /= 2;
+        ctx.accounts.calculator.value = ctx
+            .accounts
+            .calculator
+            .value
+            .checked_div(2)
+            .ok_or(CalculatorError::DivideByZero)?;
         Ok(())
     }
 
@@ -77,4 +82,6 @@ pub enum CalculatorError {
     Overflow,
     #[msg("The calculator operation underflowed")]
     Underflow,
+    #[msg("Cannot divide by zero")]
+    DivideByZero,
 }
