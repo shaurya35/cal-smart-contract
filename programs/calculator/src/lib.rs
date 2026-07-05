@@ -1,110 +1,80 @@
 use anchor_lang::prelude::*;
 
-#[derive(Debug)]
-struct Rect {
-    width: u32,
-    height: u32,
-}
-
-impl Rect {
-    fn area(&self) -> u32 {
-        self.width * self.height
-    }
-}
-
-declare_id!("6de6tHtmgwWUTJw3ghTeDbgYvMMbvUtdfYyCrF3v8bLq");
+declare_id!("62VaXEFVaSavNKfHEPhdXPVjNUbmH79yxtSoBwNmXJeP");
 
 #[program]
-pub mod anchor_calculator {
+pub mod calculator {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        ctx.accounts.new_account.data = 1;
-
-        let rect = Rect {
-            width: 10,
-            height: 20,
-        };
-        msg!("Rect area: {}", rect.area());
-
+    pub fn initialize(ctx: Context<Initialize>, initial_value: u32) -> Result<()> {
+        ctx.accounts.calculator.value = initial_value;
+        ctx.accounts.calculator.authority = ctx.accounts.authority.key();
         Ok(())
     }
 
-    pub fn double(ctx: Context<Double>) -> Result<()> {
-        ctx.accounts.account.data = ctx
+    pub fn double(ctx: Context<Modify>) -> Result<()> {
+        ctx.accounts.calculator.value = ctx
             .accounts
-            .account
-            .data
+            .calculator
+            .value
             .checked_mul(2)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
+            .ok_or(CalculatorError::Overflow)?;
         Ok(())
     }
 
-    pub fn halve(ctx: Context<Halve>) -> Result<()> {
-        ctx.accounts.account.data /= 2;
+    pub fn halve(ctx: Context<Modify>) -> Result<()> {
+        ctx.accounts.calculator.value /= 2;
         Ok(())
     }
 
-    pub fn add(ctx: Context<Add>, amount: u32) -> Result<()> {
-        ctx.accounts.account.data = ctx
+    pub fn add(ctx: Context<Modify>, amount: u32) -> Result<()> {
+        ctx.accounts.calculator.value = ctx
             .accounts
-            .account
-            .data
+            .calculator
+            .value
             .checked_add(amount)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
+            .ok_or(CalculatorError::Overflow)?;
         Ok(())
     }
-    
-    pub fn sub(ctx: Context<Sub>, amount: u32) -> Result<()> {
-        ctx.accounts.account.data = ctx
+
+    pub fn sub(ctx: Context<Modify>, amount: u32) -> Result<()> {
+        ctx.accounts.calculator.value = ctx
             .accounts
-            .account
-            .data
+            .calculator
+            .value
             .checked_sub(amount)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
+            .ok_or(CalculatorError::Underflow)?;
         Ok(())
     }
 }
 
 #[account]
 #[derive(InitSpace)]
-pub struct NewAccount {
-    pub data: u32,
+pub struct CalculatorState {
+    pub value: u32,
+    pub authority: Pubkey,
 }
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    #[account(init, payer = signer, space = 8 + NewAccount::INIT_SPACE)]
-    pub new_account: Account<'info, NewAccount>,
     #[account(mut)]
-    pub signer: Signer<'info>,
+    pub authority: Signer<'info>,
+    #[account(init, payer = authority, space = 8 + CalculatorState::INIT_SPACE)]
+    pub calculator: Account<'info, CalculatorState>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-pub struct Double<'info> {
-    #[account(mut)]
-    pub account: Account<'info, NewAccount>,
-    pub signer: Signer<'info>,
+pub struct Modify<'info> {
+    #[account(mut, has_one = authority)]
+    pub calculator: Account<'info, CalculatorState>,
+    pub authority: Signer<'info>,
 }
 
-#[derive(Accounts)]
-pub struct Halve<'info> {
-    #[account(mut)]
-    pub account: Account<'info, NewAccount>,
-    pub signer: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct Add<'info> {
-    #[account(mut)]
-    pub account: Account<'info, NewAccount>,
-    pub signer: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct Sub<'info> {
-    #[account(mut)]
-    pub account: Account<'info, NewAccount>,
-    pub signer: Signer<'info>,
+#[error_code]
+pub enum CalculatorError {
+    #[msg("The calculator operation overflowed")]
+    Overflow,
+    #[msg("The calculator operation underflowed")]
+    Underflow,
 }
